@@ -1301,4 +1301,425 @@ ax.set_xlim(df_plot["AÑO"].min(), df_plot["AÑO"].max() + 1)
 plt.tight_layout()
 plt.show()
 
+###############################################################################
+# Se elabora una gráfica para visualizar el top 10 de universidades involucradas
+# se consideran tanto las subvenciones en condición de activo y concluido
+###############################################################################
+observa_uni = observa[observa["ORGANIZACIÓN"].str.contains("UNIVERSIDAD", case=False, na=False)]
+observa_uni_a = observa_uni.ORGANIZACIÓN.value_counts(normalize=True).round(3)*100
+observa_uni_a = observa_uni_a.to_frame()
+observa_uni_a.reset_index(inplace=True)
+observa_uni_a.rename(columns=({"proportion":"Porcentaje"}), inplace=True)
+observa_uni_a = observa_uni_a[observa_uni_a["Porcentaje"]>=2.7]
+
+observa_uni_a = observa_uni_a.sort_values("Porcentaje", ascending=True)
+
+color_principal = "#0B4F6C"   # azul institucional
+color_secundario = "#5FB7C6"  # celeste
+
+colors = [color_secundario] * len(observa_uni_a)
+colors[-1] = color_principal  # destacar el mayor
+
+plt.figure(figsize=(12, 6))
+
+bars = plt.barh(observa_uni_a["ORGANIZACIÓN"], observa_uni_a["Porcentaje"], color=colors)
+
+# Etiquetas
+for i, v in enumerate(observa_uni_a["Porcentaje"]):
+    plt.text(v + 0.5, i, f"{v:.0f}%", va="center", fontsize=10)
+
+# Estética consultoría
+plt.xlabel("Porcentaje (%)")
+#plt.title("Distribución de subvenciones por tipo de intervención", fontsize=13)
+
+plt.gca().spines["top"].set_visible(False)
+plt.gca().spines["right"].set_visible(False)
+
+plt.grid(axis="x", linestyle="--", alpha=0.3)
+
+plt.tight_layout()
+plt.show()
+
+###############################################################################
+# Se elabora una gráfica para visualizar el top 10 de personas naturales
+# Se consideran tanto las subvenciones en condición de activo y concluido
+###############################################################################
+
+
+
+
+
+
+
+
+
+
+
+##############################################################################################################################
+# Se elabora una gráfica de correlación para visualizar la relación entre presupuesto y producción científica de universidades
+# Se consideran las subvenciones en condición de concluido
+###############################################################################
+observa_pre_uni = observa_conclu[observa_conclu["ORGANIZACIÓN"].str.contains("UNIVERSIDAD", case=False, na=False)]
+observa_pre_uni_a = (observa_pre_uni.groupby("ORGANIZACIÓN", as_index=False).agg({"MONTO":"sum", "PRODUCCION":"sum"}))
+
+df_plot = observa_pre_uni_a.copy()
+
+# Conversión de tipos
+df_plot["MONTO"] = pd.to_numeric(df_plot["MONTO"], errors="coerce")
+df_plot["PRODUCCION"] = pd.to_numeric(df_plot["PRODUCCION"], errors="coerce")
+
+# Limpieza
+df_plot = df_plot.dropna(subset=["MONTO", "PRODUCCION"]).copy()
+
+# Escala en millones
+df_plot["MONTO_M"] = df_plot["MONTO"] / 1e6
+
+# =========================================================
+# 3. ABREVIACIÓN DE INSTITUCIONES
+# =========================================================
+map_dict = {
+    "PONTIFICIA UNIVERSIDAD CATOLICA DEL PERU": "PUCP",
+    "UNIVERSIDAD ANDINA DEL CUSCO": "UAC",
+    "UNIVERSIDAD CATOLICA DE SANTA MARIA": "UCSM",
+    "UNIVERSIDAD CATOLICA SAN PABLO": "UCSP",
+    "UNIVERSIDAD ANTONIO RUIZ DE MONTOYA": "UARM",
+    "UNIVERSIDAD CATOLICA LOS ANGELES DE CHIMBOTE": "ULADECH",
+    "ASOCIACION CIVIL UNIVERSIDAD DE CIENCIAS Y HUMANIDADES UCH": "UCH",
+    "UNIVERSIDAD PERUANA CAYETANO HEREDIA": "UPCH",
+    "UNIVERSIDAD NACIONAL DE INGENIERIA UNI":"UNI",
+    "UNIVERSIDAD NACIONAL AGRARIA LA MOLINA":"UNALM",
+    "UNIVERSIDAD NACIONAL MAYOR DE SAN MARCOS":"UNMSM",
+    "UNIVERSIDAD NACIONAL TORIBIO RODRIGUEZ DE MENDOZA DE AMAZONAS":"UNTRM",
+    "UNIVERSIDAD DE INGENIERIA Y TECNOLOGIA":"UTEC",
+    "UNIVERSIDAD NACIONAL DE SAN AGUSTIN":"UNSA",
+    "UNIVERSIDAD DE PIURA":"UDEP",
+    "UNIVERSIDAD NACIONAL DE TRUJILLO":"UNT"
+}
+
+df_plot["ORG_SHORT"] = df_plot["ORGANIZACIÓN"].map(map_dict)
+
+# Si alguna no está en el diccionario, usar nombre original corto
+df_plot["ORG_SHORT"] = df_plot["ORG_SHORT"].fillna(
+    df_plot["ORGANIZACIÓN"].str[:15]
+)
+
+# =========================================================
+# 4. CÁLCULO DE TENDENCIA
+# =========================================================
+x = df_plot["MONTO_M"]
+y = df_plot["PRODUCCION"]
+
+coef = np.polyfit(x, y, 1)
+trend = np.poly1d(coef)
+
+# =========================================================
+# 5. GRÁFICO
+# =========================================================
+fig, ax = plt.subplots(figsize=(10, 6))
+
+# Scatter
+ax.scatter(
+    x,
+    y,
+    color="#5FB7C6",
+    s=90,
+    edgecolors="white",
+    linewidth=1.5
+)
+
+# Línea de tendencia
+ax.plot(
+    x,
+    trend(x),
+    color="#0B4F6C",
+    linewidth=2.2)
+
+# =========================================================
+# 6. ETIQUETAS INTELIGENTES
+# =========================================================
+for _, row in df_plot.iterrows():
+    
+    # Mostrar solo instituciones relevantes (evita saturación)
+    if row["PRODUCCION"] > 90 or row["MONTO_M"] > 20:
+        
+        ax.text(
+            row["MONTO_M"] + 1,
+            row["PRODUCCION"],
+            row["ORG_SHORT"],
+            fontsize=9,
+            ha="left",
+            va="center",
+            color="#0B4F6C",
+            fontweight="bold"
+        )
+
+# =========================================================
+# 7. ESTÉTICA
+# =========================================================
+#ax.set_title(
+   # "Relación entre financiamiento y producción científica por institución",
+    #fontsize=14,
+    #color="#0B4F6C",
+    #pad=15
+#)
+
+ax.set_xlabel("Monto (millones de S/)")
+ax.set_ylabel("Producción científica")
+
+ax.grid(alpha=0.25)
+
+ax.spines["top"].set_visible(False)
+ax.spines["right"].set_visible(False)
+
+plt.tight_layout()
+plt.show()
+
+###############################################################################
+# Se elabora un NLP para considerar cuales son los tópicos más analizados
+###############################################################################
+
+# =========================================================
+# 1. LIBRERÍAS
+# =========================================================
+import re
+import unicodedata
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.decomposition import NMF
+
+from wordcloud import WordCloud
+
+# =========================================================
+# 2. COPIA DEL DATAFRAME Y VALIDACIÓN
+# =========================================================
+df_nlp = observa.copy()
+
+# Asegúrate de que exista la columna TÍTULO
+if "TÍTULO" not in df_nlp.columns:
+    raise ValueError("No existe la columna 'TÍTULO' en el DataFrame.")
+
+# Eliminar nulos y convertir a string
+df_nlp = df_nlp.dropna(subset=["TÍTULO"]).copy()
+df_nlp["TÍTULO"] = df_nlp["TÍTULO"].astype(str)
+
+# =========================================================
+# 3. FUNCIONES DE LIMPIEZA
+# =========================================================
+def quitar_acentos(texto: str) -> str:
+    texto = unicodedata.normalize("NFKD", texto)
+    return "".join(c for c in texto if not unicodedata.combining(c))
+
+def limpiar_texto(texto: str) -> str:
+    texto = texto.lower()
+    texto = quitar_acentos(texto)
+
+    # Reemplazar saltos de línea
+    texto = texto.replace("\n", " ").replace("\r", " ")
+
+    # Eliminar números aislados y símbolos raros
+    texto = re.sub(r"[^a-zA-Z\s]", " ", texto)
+
+    # Eliminar espacios múltiples
+    texto = re.sub(r"\s+", " ", texto).strip()
+
+    return texto
+
+df_nlp["TITULO_LIMPIO"] = df_nlp["TÍTULO"].apply(limpiar_texto)
+
+# =========================================================
+# 4. STOPWORDS PERSONALIZADAS
+# =========================================================
+# Puedes ampliar esta lista según veas ruido en los resultados
+stopwords_es_en = {
+    # Español
+    "de", "del", "la", "las", "el", "los", "y", "en", "para", "con", "por",
+    "una", "un", "unos", "unas", "a", "al", "se", "que", "como", "su", "sus",
+    "mediante", "sobre", "entre", "desde", "hacia", "uso", "usando", "basado",
+    "basadas", "basados", "aplicado", "aplicada", "aplicadas", "aplicacion",
+    "aplicaciones", "desarrollo", "diseno", "diseño", "evaluacion", "validacion",
+    "sistema", "sistemas", "metodo", "metodos", "modelo", "modelos", "analisis",
+    "estudio", "implementacion", "propuesta", "mejora", "obtencion", "caracterizacion",
+    "caracterizacion", "tecnologia", "tecnologias", "proyecto", "proyectos", "ciencias",
+    "doctorado", "maestria", "mencion", "mención", "programa", "ciencia", "peru", "nacionales",
+    "nacional"
+
+    # Inglés
+    "and", "or", "the", "of", "for", "in", "on", "to", "with", "by", "from",
+    "based", "using", "use", "system", "systems", "design", "development",
+    "evaluation", "validation", "analysis", "study", "method", "methods",
+    "model", "models", "application", "applications"
+}
+
+# =========================================================
+# 5. TF-IDF
+# =========================================================
+vectorizer = TfidfVectorizer(
+    stop_words=list(stopwords_es_en),
+    max_df=0.90,       # elimina términos demasiado frecuentes
+    min_df=2,          # elimina términos muy raros
+    ngram_range=(1, 2) # unigramas y bigramas
+)
+
+X_tfidf = vectorizer.fit_transform(df_nlp["TITULO_LIMPIO"])
+feature_names = np.array(vectorizer.get_feature_names_out())
+
+print("Shape TF-IDF:", X_tfidf.shape)
+
+# =========================================================
+# 6. MODELADO DE TÓPICOS CON NMF
+# =========================================================
+n_topics = 6  # ajusta entre 5 y 10 y compara resultados
+
+nmf_model = NMF(
+    n_components=n_topics,
+    random_state=42,
+    init="nndsvda",
+    max_iter=500
+)
+
+W = nmf_model.fit_transform(X_tfidf)  # documentos x tópicos
+H = nmf_model.components_             # tópicos x términos
+
+# =========================================================
+# 7. MOSTRAR TÉRMINOS MÁS IMPORTANTES POR TÓPICO
+# =========================================================
+n_top_words = 10
+
+topicos_resumen = []
+
+for topic_idx, topic_weights in enumerate(H):
+    top_term_indices = topic_weights.argsort()[::-1][:n_top_words]
+    top_terms = feature_names[top_term_indices]
+    top_pesos = topic_weights[top_term_indices]
+
+    topicos_resumen.append({
+        "TOPICO": f"Tópico {topic_idx + 1}",
+        "TERMINOS_CLAVE": ", ".join(top_terms)
+    })
+
+    print(f"\nTópico {topic_idx + 1}:")
+    for term, peso in zip(top_terms, top_pesos):
+        print(f"  {term:<30} {peso:.4f}")
+
+df_topicos = pd.DataFrame(topicos_resumen)
+
+print("\nResumen de tópicos:")
+print(df_topicos)
+
+# =========================================================
+# 8. ASIGNAR TÓPICO DOMINANTE A CADA TÍTULO
+# =========================================================
+df_nlp["TOPICO_DOMINANTE"] = W.argmax(axis=1) + 1
+df_nlp["PESO_TOPICO"] = W.max(axis=1)
+
+print("\nEjemplo de asignación de tópicos:")
+print(df_nlp[["TÍTULO", "TOPICO_DOMINANTE", "PESO_TOPICO"]].head(10))
+
+# =========================================================
+# 9. FRECUENCIA DE TÓPICOS
+# =========================================================
+df_freq_topicos = (
+    df_nlp["TOPICO_DOMINANTE"]
+    .value_counts(normalize=True).round(2)
+    .sort_index()
+    .rename_axis("TOPICO")
+    .reset_index(name="CANTIDAD")
+)
+
+print("\nFrecuencia de tópicos:")
+print(df_freq_topicos)
+
+# =========================================================
+# 10. GRÁFICO DE BARRAS DE TÓPICOS
+# =========================================================
+
+map_nombres = {
+    1: "Ingeniería y ambiente",
+    2: "Física y energía",
+    3: "Química aplicada",
+    4: "Salud pública",
+    5: "Nutrición y biología",
+    6: "Sostenibilidad"
+}
+
+
+# Agregar nombres
+df_freq_topicos["NOMBRE_TOPICO"] = df_freq_topicos["TOPICO"].map(map_nombres)
+df_freq_topicos["CANTIDAD"] = df_freq_topicos["CANTIDAD"]*100
+
+# Ordenar (opcional, recomendado)
+df_freq_topicos = df_freq_topicos.sort_values("CANTIDAD", ascending=False)
+
+# Gráfico
+import matplotlib.pyplot as plt
+
+plt.figure(figsize=(10, 5))
+
+bars = plt.bar(
+    df_freq_topicos["NOMBRE_TOPICO"],
+    df_freq_topicos["CANTIDAD"]
+)
+
+#plt.title("Distribución de proyectos por área temática")
+plt.xlabel("")
+plt.ylabel("Porcentaje (%)")
+
+plt.xticks(rotation=25, ha="right")
+
+# Etiquetas
+for i, v in enumerate(df_freq_topicos["CANTIDAD"]):
+    plt.text(i, v, str(v), ha="center", va="bottom")
+
+plt.tight_layout()
+plt.show()
+
+
+# =========================================================
+# 11. NUBE DE PALABRAS GLOBAL
+# =========================================================
+texto_total = " ".join(df_nlp["TITULO_LIMPIO"])
+
+wordcloud = WordCloud(
+    width=1400,
+    height=800,
+    background_color="white",
+    stopwords=stopwords_es_en,
+    collocations=False
+).generate(texto_total)
+
+plt.figure(figsize=(12, 7))
+plt.imshow(wordcloud, interpolation="bilinear")
+plt.axis("off")
+plt.title("Nube de palabras de títulos de proyectos")
+plt.tight_layout()
+plt.show()
+
+# =========================================================
+# 12. NUBE DE PALABRAS POR TÓPICO (OPCIONAL)
+# =========================================================
+for topico in sorted(df_nlp["TOPICO_DOMINANTE"].unique()):
+    texto_topico = " ".join(
+        df_nlp.loc[df_nlp["TOPICO_DOMINANTE"] == topico, "TITULO_LIMPIO"]
+    )
+
+    if texto_topico.strip():
+        wc_topico = WordCloud(
+            width=1200,
+            height=700,
+            background_color="white",
+            stopwords=stopwords_es_en,
+            collocations=False
+        ).generate(texto_topico)
+
+        plt.figure(figsize=(10, 6))
+        plt.imshow(wc_topico, interpolation="bilinear")
+        plt.axis("off")
+        plt.title(f"Nube de palabras - Tópico {topico}")
+        plt.tight_layout()
+        plt.show()
+
+
 
