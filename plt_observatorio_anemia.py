@@ -114,34 +114,29 @@ df_plot = df_plot.sort_values("AÑO")
 color_monto = "#5FB7C6"   # celeste institucional
 color_prod = "#0B4F6C"    # azul petróleo
 
-# ----------------------------
-# Figura
-# ----------------------------
 fig, ax1 = plt.subplots(figsize=(14, 7))
 
-# ----------------------------
-# Barras: MONTO
-# ----------------------------
+color_monto = "#5FB7C6"
+color_prod = "#0B4F6C"
+
 bars = ax1.bar(
     df_plot["AÑO"],
     df_plot["MONTO"],
     color=color_monto,
     alpha=0.85,
-    width=0.6
+    width=0.6,
+    edgecolor="white",
+    linewidth=1
 )
 
 ax1.set_xlabel("Año", fontsize=11)
-ax1.set_ylabel("Monto (S/)", fontsize=11, color=color_monto)
+ax1.set_ylabel("Monto (Millones de S/)", fontsize=11, color=color_monto)
 ax1.tick_params(axis="y", labelcolor=color_monto)
 
-# Mostrar todos los años en eje X
-años = df_plot["AÑO"].tolist()
+años = df_plot["AÑO"].astype(int).tolist()
 ax1.set_xticks(años)
 ax1.set_xticklabels(años)
 
-# ----------------------------
-# Línea: PRODUCCION
-# ----------------------------
 ax2 = ax1.twinx()
 
 ax2.plot(
@@ -149,54 +144,64 @@ ax2.plot(
     df_plot["ID_CONTRATO"],
     color=color_prod,
     marker="o",
-    linewidth=2.5,
-    markersize=6
+    linewidth=2.6,
+    markersize=6,
+    zorder=5
 )
 
-ax2.set_ylabel("N de Subvenciones", fontsize=11, color=color_prod)
+ax2.set_ylabel("N.° de subvenciones", fontsize=11, color=color_prod)
 ax2.tick_params(axis="y", labelcolor=color_prod)
 
 # ----------------------------
-# Etiquetas en barras (MONTO)
+# Etiquetas de barras: dentro si son altas, fuera si son bajas
 # ----------------------------
 max_monto = df_plot["MONTO"].max()
 
 for bar in bars:
     height = bar.get_height()
     x = bar.get_x() + bar.get_width() / 2
-
-    # Mostrar en millones para evitar saturación
     label = f"{height / 1e6:.1f}M"
+
+    if height > max_monto * 0.18:
+        y_text = height - max_monto * 0.045
+        va = "top"
+        color_label = "white"
+    else:
+        y_text = height + max_monto * 0.018
+        va = "bottom"
+        color_label = color_monto
 
     ax1.text(
         x,
-        height + max_monto * 0.012,
+        y_text,
         label,
         ha="center",
-        va="bottom",
-        fontsize=8,
-        color=color_monto
+        va=va,
+        fontsize=8.5,
+        color=color_label,
+        fontweight="bold"
     )
 
 # ----------------------------
-# Etiquetas en línea (PRODUCCION)
-# con lógica para evitar superposición
+# Etiquetas de línea: caja sutil y alternancia
 # ----------------------------
-max_prod = df_plot["ID_CONTRATO"].max()
-prev_y = None
+max_line = df_plot["ID_CONTRATO"].max()
+
+bbox_line = dict(
+    boxstyle="round,pad=0.18",
+    facecolor="white",
+    edgecolor="none",
+    alpha=0.80
+)
 
 for i, (x, y) in enumerate(zip(df_plot["AÑO"], df_plot["ID_CONTRATO"])):
-    if prev_y is not None and abs(y - prev_y) < max_prod * 0.08:
-        # alternar arriba/abajo si están muy cerca
-        if i % 2 == 0:
-            offset = max_prod * 0.06
-            va = "bottom"
-        else:
-            offset = -max_prod * 0.06
-            va = "top"
-    else:
-        offset = max_prod * 0.035
+
+    if i % 2 == 0:
+        offset = max_line * 0.055
         va = "bottom"
+    else:
+        offset = -max_line * 0.065
+        va = "top"
 
     ax2.text(
         x,
@@ -206,37 +211,26 @@ for i, (x, y) in enumerate(zip(df_plot["AÑO"], df_plot["ID_CONTRATO"])):
         va=va,
         fontsize=9,
         color=color_prod,
-        fontweight="bold"
+        fontweight="bold",
+        bbox=bbox_line,
+        zorder=6
     )
 
-    prev_y = y
-
 # ----------------------------
-# Estética profesional
+# Estética
 # ----------------------------
-#ax1.set_title(
-    #"Relación entre financiamiento y producción científica",
-    #fontsize=15,
-    #color=color_prod,
-    #pad=15
-#)
-
 ax1.spines["top"].set_visible(False)
 ax2.spines["top"].set_visible(False)
 ax1.spines["right"].set_visible(False)
 
-ax1.grid(axis="y", linestyle="--", alpha=0.25)
+ax1.grid(axis="y", linestyle="--", alpha=0.22)
 ax1.set_axisbelow(True)
+
+ax1.set_ylim(0, max_monto * 1.15)
+ax2.set_ylim(0, max_line * 1.18)
 
 plt.tight_layout()
 plt.show()
-
-
-
-
-
-
-
 
 
 
@@ -533,6 +527,154 @@ plt.grid(axis="x", linestyle="--", alpha=0.3)
 plt.tight_layout()
 plt.show()
 
+###############################################################################
+# Se realiza un gráfico de barras apiladas para ver la concentración del
+# financiamiento por intervención
+###############################################################################
+
+barra_apilada = pd.pivot_table(observa, values="MONTO", index="INTERVENCIÓN", columns="AÑO", aggfunc="sum")
+
+# Reemplazar NaN por 0
+barra_apilada = barra_apilada.fillna(0)
+
+# Pasar a millones
+barra_apilada_m = barra_apilada / 1e6
+
+# Transponer: años en filas, categorías en columnas
+barra_apilada = barra_apilada_m.T
+
+# ----------------------------
+# 2. Gráfico de columnas apiladas
+# ----------------------------
+fig, ax = plt.subplots(figsize=(14, 7))
+
+barra_apilada.plot(
+    kind="bar",
+    stacked=True,
+    ax=ax,
+    width=0.75,
+    colormap="Set2",
+    edgecolor="white",
+    linewidth=0.9
+)
+
+# ----------------------------
+# 3. Estética profesional
+# ----------------------------
+ax.set_xlabel("Año", fontsize=11)
+ax.set_ylabel("Monto adjudicado (millones de S/)", fontsize=11)
+
+#ax.set_title(
+    #"Evolución del monto adjudicado por tipo de intervención",
+    #fontsize=15,
+    #color="#0B4F6C",
+    #pad=15
+#)
+
+ax.grid(axis="y", linestyle="--", alpha=0.25)
+ax.set_axisbelow(True)
+
+ax.spines["top"].set_visible(False)
+ax.spines["right"].set_visible(False)
+
+ax.legend(
+    title="Intervención",
+    frameon=False,
+    bbox_to_anchor=(1.02, 1),
+    loc="upper left"
+)
+
+plt.xticks(rotation=0)
+
+plt.tight_layout()
+plt.show()
+
+
+
+
+
+
+
+
+
+
+###############################################################################
+# Se realiza un gráfico para identificar quienes investigan en anemia en el Perú
+# por investigador y por universidad
+################################################################################
+
+anemia_investigador = observa.LIDER_PROYECTO.value_counts()
+anemia_investigador = anemia_investigador.to_frame()
+anemia_investigador.reset_index(inplace=True)
+anemia_investigador.rename(columns=({"count":"Cantidad"}), inplace=True)
+anemia_investigador["Cantidad"] = anemia_investigador["Cantidad"].astype(int)
+anemia_investigador = anemia_investigador.head(10)
+anemia_investigador.dtypes
+
+anemia_investigador = anemia_investigador.sort_values("Cantidad", ascending=True)
+
+color_principal = "#0B4F6C"   # azul institucional
+color_secundario = "#5FB7C6"  # celeste
+
+colors = [color_secundario] * len(anemia_investigador)
+colors[-1] = color_principal  # destacar el mayor
+
+plt.figure(figsize=(12, 6))
+
+bars = plt.barh(anemia_investigador["LIDER_PROYECTO"], anemia_investigador["Cantidad"], color=colors)
+
+# Etiquetas
+for i, v in enumerate(anemia_investigador["Cantidad"]):
+    plt.text(v+0.05, i, f"{v:.0f}", va="center", fontsize=12)
+
+# Estética consultoría
+plt.xlabel("Cantidad")
+#plt.title("Distribución de subvenciones por tipo de intervención", fontsize=13)
+
+#plt.gca().spines["top"].set_visible(False)
+#plt.gca().spines["right"].set_visible(False)
+
+plt.grid(axis="x", linestyle="--", alpha=0.3)
+
+plt.tight_layout()
+plt.show()
+
+
+
+observa_uni = observa[observa["ORGANIZACIÓN"].str.contains("UNIVERSIDAD", case=False, na=False)]
+observa_uni = observa_uni.ORGANIZACIÓN.value_counts(normalize=True).round(3)*100
+observa_uni = observa_uni.to_frame()
+observa_uni.reset_index(inplace=True)
+observa_uni.rename(columns=({"proportion":"Porcentaje"}), inplace=True)
+observa_uni = observa_uni.head(10)
+
+observa_uni_a = observa_uni.sort_values("Porcentaje", ascending=True)
+
+color_principal = "#0B4F6C"   # azul institucional
+color_secundario = "#5FB7C6"  # celeste
+
+colors = [color_secundario] * len(observa_uni_a)
+colors[-1] = color_principal  # destacar el mayor
+
+plt.figure(figsize=(12, 6))
+
+bars = plt.barh(observa_uni_a["ORGANIZACIÓN"], observa_uni_a["Porcentaje"], color=colors)
+
+# Etiquetas
+for i, v in enumerate(observa_uni_a["Porcentaje"]):
+    plt.text(v + 0.5, i, f"{v:.0f}%", va="center", fontsize=10)
+
+# Estética consultoría
+plt.xlabel("Porcentaje (%)")
+#plt.title("Distribución de subvenciones por tipo de intervención", fontsize=13)
+
+plt.gca().spines["top"].set_visible(False)
+plt.gca().spines["right"].set_visible(False)
+
+plt.grid(axis="x", linestyle="--", alpha=0.3)
+
+plt.tight_layout()
+plt.show()
 
 ###############################################################################
 # Se elabora un gráfico que analiza la relación entre la producción científica
@@ -683,86 +825,285 @@ plt.show()
 
 
 ###############################################################################
-# Se realiza un gráfico para identificar quienes investigan en anemia en el Perú
-# por investigador y por universidad
-################################################################################
+# Se gráfica la evolución de la producción científica vinculada a la anemia en
+# el Perú
+###############################################################################
+observa_ptp = (observa_conclu.groupby("AÑO", as_index=False).agg({"PUB":"sum", "TESIS":"sum", "PAT":"sum"}))
 
-anemia_investigador = observa.LIDER_PROYECTO.value_counts()
-anemia_investigador = anemia_investigador.to_frame()
-anemia_investigador.reset_index(inplace=True)
-anemia_investigador.rename(columns=({"count":"Cantidad"}), inplace=True)
-anemia_investigador["Cantidad"] = anemia_investigador["Cantidad"].astype(int)
-anemia_investigador = anemia_investigador.head(10)
-anemia_investigador.dtypes
 
-anemia_investigador = anemia_investigador.sort_values("Cantidad", ascending=True)
+df_plot = observa_ptp.copy()
+df_plot = df_plot.sort_values("AÑO")
 
-color_principal = "#0B4F6C"   # azul institucional
-color_secundario = "#5FB7C6"  # celeste
+# ----------------------------
+# Figura
+# ----------------------------
+fig, ax = plt.subplots(figsize=(12, 6))
 
-colors = [color_secundario] * len(anemia_investigador)
-colors[-1] = color_principal  # destacar el mayor
+# ----------------------------
+# Colores institucionales
+# ----------------------------
+colors = {
+    "PUB": "#0B4F6C",    # azul petróleo
+    "TESIS": "#5FB7C6",  # celeste
+    "PAT": "#A3AD2C"     # verde oliva
+}
 
-plt.figure(figsize=(12, 6))
+markers = {
+    "PUB": "o",
+    "TESIS": "s",
+    "PAT": "^"
+}
 
-bars = plt.barh(anemia_investigador["LIDER_PROYECTO"], anemia_investigador["Cantidad"], color=colors)
+cols = ["PUB", "TESIS", "PAT"]
 
-# Etiquetas
-for i, v in enumerate(anemia_investigador["Cantidad"]):
-    plt.text(v+0.05, i, f"{v:.0f}", va="center", fontsize=12)
+# ----------------------------
+# Líneas
+# ----------------------------
+for col in cols:
+    ax.plot(
+        df_plot["AÑO"],
+        df_plot[col],
+        marker=markers[col],
+        linewidth=2.8 if col != "PAT" else 2,
+        markersize=6,
+        color=colors[col],
+        label=col,
+        alpha=1 if col != "PAT" else 0.75
+    )
 
-# Estética consultoría
-plt.xlabel("Cantidad")
-#plt.title("Distribución de subvenciones por tipo de intervención", fontsize=13)
+# ----------------------------
+# Escala para offsets
+# ----------------------------
+max_y = df_plot[cols].max().max()
 
-#plt.gca().spines["top"].set_visible(False)
-#plt.gca().spines["right"].set_visible(False)
+offsets = {
+    "PUB": max_y * 0.04,
+    "TESIS": max_y * 0.07,
+    "PAT": -max_y * 0.04
+}
 
-plt.grid(axis="x", linestyle="--", alpha=0.3)
+# ----------------------------
+# Etiquetas (limpias)
+# ----------------------------
+for col in cols:
+    for x, y in zip(df_plot["AÑO"], df_plot[col]):
+
+        if pd.isna(y) or y == 0:
+            continue
+
+        # Reducir ruido en PAT
+        if col == "PAT" and y < 2:
+            continue
+
+        ax.text(
+            x,
+            y + offsets[col],
+            f"{int(y)}",
+            ha="center",
+            va="bottom" if offsets[col] > 0 else "top",
+            fontsize=9,
+            color=colors[col],
+            fontweight="bold" if col == "PUB" else "normal"
+        )
+
+# ----------------------------
+# Ejes
+# ----------------------------
+años = df_plot["AÑO"].astype(int).tolist()
+ax.set_xticks(años)
+ax.set_xticklabels(años)
+
+ax.set_xlabel("Año", fontsize=11)
+ax.set_ylabel("Número de productos", fontsize=11)
+
+# ----------------------------
+# Leyenda (CORRECTA)
+# ----------------------------
+ax.legend(
+    frameon=False,
+    loc="upper right",
+    ncol=3
+)
+
+# ----------------------------
+# Estética profesional
+# ----------------------------
+ax.grid(axis="y", linestyle="--", alpha=0.25)
+ax.set_axisbelow(True)
+
+ax.spines["top"].set_visible(False)
+ax.spines["right"].set_visible(False)
+
+# Límites
+ax.set_xlim(df_plot["AÑO"].min() - 0.4, df_plot["AÑO"].max() + 0.4)
+ax.set_ylim(0, max_y * 1.15)
+
+# Fondo blanco
+ax.set_facecolor("white")
+fig.patch.set_facecolor("white")
+
+# ----------------------------
+# Título opcional
+# ----------------------------
+# ax.set_title(
+#     "Evolución de la producción científica por tipo",
+#     fontsize=14,
+#     color="#0B4F6C",
+#     pad=15
+# )
 
 plt.tight_layout()
 plt.show()
 
 
+###############################################################################
+# Se elabora una gráfica de correlación para visualizar la relación entre presupuesto y producción científica de universidades
+# Se consideran las subvenciones en condición de concluido
+###############################################################################
+observa_uni_pre = observa_conclu[observa_conclu["ORGANIZACIÓN"].str.contains("UNIVERSIDAD", case=False, na=False)]
+observa_uni_pre = (observa_uni_pre.groupby("ORGANIZACIÓN", as_index=False).agg({"MONTO":"sum", "PRODUCCION":"sum"}))
 
-observa_uni = observa[observa["ORGANIZACIÓN"].str.contains("UNIVERSIDAD", case=False, na=False)]
-observa_uni_a = observa_uni.ORGANIZACIÓN.value_counts(normalize=True).round(3)*100
-observa_uni_a = observa_uni_a.to_frame()
-observa_uni_a.reset_index(inplace=True)
-observa_uni_a.rename(columns=({"proportion":"Porcentaje"}), inplace=True)
-observa_uni_a = observa_uni_a.head(10)
+df_plot = observa_uni_pre.copy()
 
-observa_uni_a = observa_uni_a.sort_values("Porcentaje", ascending=True)
+# Conversión de tipos
+df_plot["MONTO"] = pd.to_numeric(df_plot["MONTO"], errors="coerce")
+df_plot["PRODUCCION"] = pd.to_numeric(df_plot["PRODUCCION"], errors="coerce")
 
-color_principal = "#0B4F6C"   # azul institucional
-color_secundario = "#5FB7C6"  # celeste
+# Limpieza
+df_plot = df_plot.dropna(subset=["MONTO", "PRODUCCION"]).copy()
 
-colors = [color_secundario] * len(observa_uni_a)
-colors[-1] = color_principal  # destacar el mayor
+# Escala en millones
+df_plot["MONTO_M"] = df_plot["MONTO"] / 1e6
 
-plt.figure(figsize=(12, 6))
+# =========================================================
+# 3. ABREVIACIÓN DE INSTITUCIONES
+# =========================================================
+map_dict = {
+    "PONTIFICIA UNIVERSIDAD CATOLICA DEL PERU": "PUCP",
+    "UNIVERSIDAD ANDINA DEL CUSCO": "UAC",
+    "UNIVERSIDAD CATOLICA DE SANTA MARIA": "UCSM",
+    "UNIVERSIDAD CATOLICA SAN PABLO": "UCSP",
+    "UNIVERSIDAD ANTONIO RUIZ DE MONTOYA": "UARM",
+    "UNIVERSIDAD CATOLICA LOS ANGELES DE CHIMBOTE": "ULADECH",
+    "ASOCIACION CIVIL UNIVERSIDAD DE CIENCIAS Y HUMANIDADES UCH": "UCH",
+    "UNIVERSIDAD PERUANA CAYETANO HEREDIA": "UPCH",
+    "UNIVERSIDAD NACIONAL DE INGENIERIA UNI":"UNI",
+    "UNIVERSIDAD NACIONAL AGRARIA LA MOLINA":"UNALM",
+    "UNIVERSIDAD NACIONAL MAYOR DE SAN MARCOS":"UNMSM",
+    "UNIVERSIDAD NACIONAL TORIBIO RODRIGUEZ DE MENDOZA DE AMAZONAS":"UNTRM",
+    "UNIVERSIDAD DE INGENIERIA Y TECNOLOGIA":"UTEC",
+    "UNIVERSIDAD NACIONAL DE SAN AGUSTIN":"UNSA",
+    "UNIVERSIDAD DE PIURA":"UDEP",
+    "UNIVERSIDAD NACIONAL DE TRUJILLO":"UNT",
+    "UNIVERSIDAD DE SAN MARTIN DE PORRES":"USMP",
+    "UNIVERSIDAD PERUANA DE CIENCIAS APLICADAS S.A.C.":"UPC",
+    "UNIVERSIDAD CIENTIFICA DEL SUR S.A.C.":"UCSUR"
+}
 
-bars = plt.barh(observa_uni_a["ORGANIZACIÓN"], observa_uni_a["Porcentaje"], color=colors)
+df_plot["ORG_SHORT"] = df_plot["ORGANIZACIÓN"].map(map_dict)
 
-# Etiquetas
-for i, v in enumerate(observa_uni_a["Porcentaje"]):
-    plt.text(v + 0.5, i, f"{v:.0f}%", va="center", fontsize=10)
+# Si alguna no está en el diccionario, usar nombre original corto
+df_plot["ORG_SHORT"] = df_plot["ORG_SHORT"].fillna(
+    df_plot["ORGANIZACIÓN"].str[:15]
+)
 
-# Estética consultoría
-plt.xlabel("Porcentaje (%)")
-#plt.title("Distribución de subvenciones por tipo de intervención", fontsize=13)
+# =========================================================
+# 4. CÁLCULO DE TENDENCIA
+# =========================================================
+x = df_plot["MONTO_M"]
+y = df_plot["PRODUCCION"]
 
-plt.gca().spines["top"].set_visible(False)
-plt.gca().spines["right"].set_visible(False)
+coef = np.polyfit(x, y, 1)
+trend = np.poly1d(coef)
 
-plt.grid(axis="x", linestyle="--", alpha=0.3)
+# =========================================================
+# 5. GRÁFICO
+# =========================================================
+fig, ax = plt.subplots(figsize=(10, 6))
+
+# Scatter
+ax.scatter(
+    x,
+    y,
+    color="#5FB7C6",
+    s=90,
+    edgecolors="white",
+    linewidth=1.5
+)
+
+# Línea de tendencia
+ax.plot(
+    x,
+    trend(x),
+    color="#0B4F6C",
+    linewidth=2.2)
+
+# =========================================================
+# 6. ETIQUETAS INTELIGENTES
+# =========================================================
+for _, row in df_plot.iterrows():
+    
+    # Mostrar solo instituciones relevantes (evita saturación)
+    if row["PRODUCCION"] >= 8 or row["MONTO_M"]>=0.5:
+        
+        ax.text(
+            row["MONTO_M"],
+            row["PRODUCCION"],
+            row["ORG_SHORT"],
+            fontsize=9,
+            ha="left",
+            va="center",
+            color="#0B4F6C",
+            fontweight="bold"
+        )
+
+# =========================================================
+# 7. ESTÉTICA
+# =========================================================
+#ax.set_title(
+   # "Relación entre financiamiento y producción científica por institución",
+    #fontsize=14,
+    #color="#0B4F6C",
+    #pad=15
+#)
+
+ax.set_xlabel("Monto (millones de S/)")
+ax.set_ylabel("Producción científica")
+
+ax.grid(alpha=0.25)
+
+ax.spines["top"].set_visible(False)
+ax.spines["right"].set_visible(False)
 
 plt.tight_layout()
 plt.show()
+
 
 ###############################################################################
 # Se analiza que se ha investigado sobre anemia en el Perú
 ###############################################################################
+
+# Se obtiene un suset denominado investigación a partir del dataframe observa
+observa.columns
+investigacion = observa[observa["INTERVENCIÓN"] =="INVESTIGACIÓN CIENTÍFICA"]
+investigacion.columns
+
+# se consideran un conjunto de columnas
+investigacion = investigacion[["ID_CONTRATO", "TÍTULO", "ORGANIZACIÓN", "AÑO"]]
+investigacion.to_excel("listado_inv_anemia.xlsx")
+
+
+###############################################################################
+# Se analiza los desarrollos tecnológicos que se han elaborado
+###############################################################################
+tecnologia = observa[observa["INTERVENCIÓN"]=="INNOVACIÓN Y TRANSFERENCIA TECNOLÓGICA"]
+tecnologia = tecnologia[["ID_CONTRATO", "TÍTULO", "ORGANIZACIÓN", "AÑO"]]
+tecnologia.to_excel("listado_tec_anemia.xlsx")
+
+
+
+
+
 
 
 
