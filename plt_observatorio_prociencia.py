@@ -101,6 +101,13 @@ observa_año.info()
 observa_año["AÑO"] = pd.to_numeric(observa_año["AÑO"], errors="coerce")
 observa_año["ID_CONTRATO"] = pd.to_numeric(observa_año["ID_CONTRATO"], errors="coerce")
 
+# Se calcula la cantidad de subvenciones durante el periodo de análisis
+observa["ID_CONTRATO"].count()
+
+# Se calcula la suma del total de subvenciones durante el periodo de análisis
+observa["MONTO"].sum()
+
+
 ###############################################################################
 # Se realiza una gráfico de barras considerando el dataframe observa_año
 ###############################################################################
@@ -473,6 +480,69 @@ ax.grid(axis="y", linestyle="--", alpha=0.25)
 ax.set_axisbelow(True)
 
 ax.legend(frameon=False, loc="upper left")
+
+plt.tight_layout()
+plt.show()
+
+
+###############################################################################
+# Se realiza un gráfico de barras apiladas para ver la concentración del
+# financiamiento por intervención
+###############################################################################
+
+barra_apilada = pd.pivot_table(observa, values="MONTO", index="INTERVENCIÓN", columns="AÑO", aggfunc="sum")
+
+# Reemplazar NaN por 0
+barra_apilada = barra_apilada.fillna(0)
+
+# Pasar a millones
+barra_apilada_m = barra_apilada / 1e6
+
+# Transponer: años en filas, categorías en columnas
+barra_apilada = barra_apilada_m.T
+
+# ----------------------------
+# 2. Gráfico de columnas apiladas
+# ----------------------------
+fig, ax = plt.subplots(figsize=(14, 7))
+
+barra_apilada.plot(
+    kind="bar",
+    stacked=True,
+    ax=ax,
+    width=0.75,
+    colormap="Set2",
+    edgecolor="white",
+    linewidth=0.9
+)
+
+# ----------------------------
+# 3. Estética profesional
+# ----------------------------
+ax.set_xlabel("Año", fontsize=11)
+ax.set_ylabel("Monto adjudicado (millones de S/)", fontsize=11)
+
+#ax.set_title(
+    #"Evolución del monto adjudicado por tipo de intervención",
+    #fontsize=15,
+    #color="#0B4F6C",
+    #pad=15
+#)
+
+ax.grid(axis="y", linestyle="--", alpha=0.25)
+ax.set_axisbelow(True)
+
+ax.spines["top"].set_visible(False)
+ax.spines["right"].set_visible(False)
+
+ax.legend(
+    title="Intervención",
+    frameon=False,
+    bbox_to_anchor=(1.02, 1),
+    loc="upper left"
+)
+
+plt.xticks(rotation=0)
 
 plt.tight_layout()
 plt.show()
