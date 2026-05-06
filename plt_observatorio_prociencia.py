@@ -113,6 +113,126 @@ observa["MONTO"].sum()
 ###############################################################################
 
 observa_año = observa_año.sort_values("AÑO")
+df_plot = observa_año.copy()
+
+df_plot["AÑO"] = pd.to_numeric(df_plot["AÑO"], errors="coerce")
+df_plot["MONTO"] = pd.to_numeric(df_plot["MONTO"], errors="coerce")
+df_plot["ID_CONTRATO"] = pd.to_numeric(df_plot["ID_CONTRATO"], errors="coerce")
+
+df_plot = df_plot.dropna(subset=["AÑO", "MONTO", "ID_CONTRATO"]).copy()
+df_plot["AÑO"] = df_plot["AÑO"].astype(int)
+df_plot = df_plot.sort_values("AÑO")
+
+# Monto en millones
+df_plot["MONTO_M"] = df_plot["MONTO"] / 1e6
+
+color_monto = "#0B4F6C"
+color_linea = "#A3AD2C"
+
+fig, ax1 = plt.subplots(figsize=(14, 7))
+
+# Barras
+bars = ax1.bar(
+    df_plot["AÑO"],
+    df_plot["MONTO_M"],
+    color=color_monto,
+    alpha=0.82,
+    width=0.60,
+    edgecolor="white",
+    linewidth=1
+)
+
+ax1.set_xlabel("Año", fontsize=11)
+ax1.set_ylabel("Monto (millones de S/)", fontsize=11, color=color_monto)
+ax1.tick_params(axis="y", labelcolor=color_monto)
+
+años = df_plot["AÑO"].tolist()
+ax1.set_xticks(años)
+ax1.set_xticklabels(años)
+
+# Línea
+ax2 = ax1.twinx()
+
+ax2.plot(
+    df_plot["AÑO"],
+    df_plot["ID_CONTRATO"],
+    color=color_linea,
+    marker="o",
+    linewidth=2.6,
+    markersize=6,
+    zorder=5
+)
+
+ax2.set_ylabel("N.° de subvenciones", fontsize=11, color=color_linea)
+ax2.tick_params(axis="y", labelcolor=color_linea)
+
+# ----------------------------
+# Etiquetas selectivas
+# ----------------------------
+idx_monto_max = df_plot["MONTO_M"].idxmax()
+idx_linea_max = df_plot["ID_CONTRATO"].idxmax()
+idx_ultimo = df_plot.index[-1]
+
+# Etiquetar barras solo en máximo y años relevantes
+indices_barras = {idx_monto_max}
+
+# También puedes agregar segundo mayor monto
+indices_barras.add(df_plot["MONTO_M"].nlargest(2).index[-1])
+
+for idx in indices_barras:
+    row = df_plot.loc[idx]
+    ax1.text(
+        row["AÑO"],
+        row["MONTO_M"] + df_plot["MONTO_M"].max() * 0.035,
+        f"S/ {row['MONTO_M']:.1f} M",
+        ha="center",
+        va="bottom",
+        fontsize=10,
+        color=color_monto,
+        fontweight="bold"
+    )
+
+# Etiquetar línea solo en máximo, primer año y último año
+indices_linea = {idx_linea_max, df_plot.index[0], idx_ultimo}
+
+for idx in indices_linea:
+    row = df_plot.loc[idx]
+    ax2.text(
+        row["AÑO"],
+        row["ID_CONTRATO"] + df_plot["ID_CONTRATO"].max() * 0.045,
+        f"{int(row['ID_CONTRATO'])}",
+        ha="center",
+        va="bottom",
+        fontsize=10,
+        color=color_linea,
+        fontweight="bold",
+        bbox=dict(
+            boxstyle="round,pad=0.18",
+            facecolor="white",
+            edgecolor="none",
+            alpha=0.85
+        )
+    )
+
+# ----------------------------
+# Estética
+# ----------------------------
+ax1.grid(axis="y", linestyle="--", alpha=0.22)
+ax1.set_axisbelow(True)
+
+ax1.spines["top"].set_visible(False)
+ax2.spines["top"].set_visible(False)
+ax1.spines["right"].set_visible(False)
+
+ax1.set_ylim(0, df_plot["MONTO_M"].max() * 1.18)
+ax2.set_ylim(0, df_plot["ID_CONTRATO"].max() * 1.18)
+
+plt.tight_layout()
+plt.show()
+
+
+
+observa_año = observa_año.sort_values("AÑO")
 
 # Colores institucionales
 color_principal = "#00A7B5"   # turquesa
@@ -1543,6 +1663,391 @@ ax.spines["right"].set_visible(False)
 
 plt.tight_layout()
 plt.show()
+
+
+###############################################################################
+# Se analiza que universidades han invertido más en becas y programas
+# durante el periodo de análisis
+###############################################################################
+
+# se considera el dataframe observa y se obtiene los registros asociados directamente con universidad
+universidad = observa[observa["ORGANIZACIÓN"].str.contains("UNIVERSIDAD", case=False, na=False)]
+
+# se considera solo el tipo de intervención becas y programas
+universidad_beca = universidad[universidad["INTERVENCIÓN"]=="BECAS Y PROGRAMAS"]
+
+map_dict = {
+    "PONTIFICIA UNIVERSIDAD CATOLICA DEL PERU": "PUCP",
+    "UNIVERSIDAD ANDINA DEL CUSCO": "UAC",
+    "UNIVERSIDAD CATOLICA DE SANTA MARIA": "UCSM",
+    "UNIVERSIDAD CATOLICA SAN PABLO": "UCSP",
+    "UNIVERSIDAD ANTONIO RUIZ DE MONTOYA": "UARM",
+    "UNIVERSIDAD CATOLICA LOS ANGELES DE CHIMBOTE": "ULADECH",
+    "ASOCIACION CIVIL UNIVERSIDAD DE CIENCIAS Y HUMANIDADES UCH": "UCH",
+    "UNIVERSIDAD PERUANA CAYETANO HEREDIA": "UPCH",
+    "UNIVERSIDAD NACIONAL DE INGENIERIA UNI":"UNI",
+    "UNIVERSIDAD NACIONAL AGRARIA LA MOLINA":"UNALM",
+    "UNIVERSIDAD NACIONAL MAYOR DE SAN MARCOS":"UNMSM",
+    "UNIVERSIDAD NACIONAL TORIBIO RODRIGUEZ DE MENDOZA DE AMAZONAS":"UNTRM",
+    "UNIVERSIDAD DE INGENIERIA Y TECNOLOGIA":"UTEC",
+    "UNIVERSIDAD NACIONAL DE SAN AGUSTIN":"UNSA",
+    "UNIVERSIDAD DE PIURA":"UDEP",
+    "UNIVERSIDAD NACIONAL DE TRUJILLO":"UNT",
+    "UNIVERSIDAD DE SAN MARTIN DE PORRES":"USMP",
+    "UNIVERSIDAD PERUANA DE CIENCIAS APLICADAS S.A.C.":"UPC",
+    "UNIVERSIDAD CIENTIFICA DEL SUR S.A.C.":"UCSUR",
+    "UNIVERSIDAD NACIONAL DE SAN MARTIN":"UNSM",
+    "UNIVERSIDAD NACIONAL DEL CENTRO DEL PERU":"UNCP",
+    "UNIVERSIDAD NACIONAL DEL ALTIPLANO PUNO":"UNA",
+    "UNIVERSIDAD PRIVADA ANTENOR ORREGO":"UPAO"
+}
+
+
+universidad_beca["ORG_SHORT"] = universidad_beca["ORGANIZACIÓN"].map(map_dict)
+
+# Si alguna no está en el diccionario usar su nombre normal
+universidad_beca["ORG_SHORT"] = universidad_beca["ORG_SHORT"].fillna(
+    universidad_beca["ORGANIZACIÓN"]
+)
+
+
+# se considera el año 2015
+uni_beca_2015 = universidad_beca[universidad_beca["AÑO"]==2015]
+uni_beca_2015 = (uni_beca_2015.groupby("ORG_SHORT", as_index=False).agg({"MONTO":"sum"}))
+
+# Ordenar de mayor a menor
+uni_beca_2015 = uni_beca_2015.sort_values("MONTO", ascending=False)
+
+# Si tienes muchas instituciones, agrupa las menores como "Otros"
+top_n = 5
+df_top = uni_beca_2015.head(top_n).copy()
+
+otros = uni_beca_2015.iloc[top_n:]["MONTO"].sum()
+
+if otros > 0:
+    df_top = pd.concat([
+        df_top,
+        pd.DataFrame({
+            "ORG_SHORT": ["Otros"],
+            "MONTO": [otros]
+        })
+    ])
+
+# Convertir a millones
+df_top["MONTO_M"] = df_top["MONTO"] / 1e6
+
+# Colores profesionales
+colors = [
+    "#D9D9D9", "#5FB7C6", "#A3AD2C", "#7A8C99",
+    "#D9A441", "#9B6A6C", "#6FA8DC"
+]
+
+fig, ax = plt.subplots(figsize=(9, 7))
+
+wedges, texts, autotexts = ax.pie(
+    df_top["MONTO_M"],
+    labels=df_top["ORG_SHORT"],
+    autopct="%1.1f%%",
+    startangle=90,
+    colors=colors[:len(df_top)],
+    pctdistance=0.78,
+    labeldistance=1.08,
+    wedgeprops={
+        "width": 0.42,
+        "edgecolor": "white",
+        "linewidth": 1
+    },
+    textprops={
+        "fontsize": 9,
+        "color": "#1F1F1F"
+    }
+)
+
+# Centro del donut
+total_m = df_top["MONTO_M"].sum()
+
+ax.text(
+    0, 0.05,
+    f"S/ {total_m:,.1f} M",
+    ha="center",
+    va="center",
+    fontsize=16,
+    fontweight="bold",
+    color="#0B4F6C"
+)
+
+ax.text(
+    0, -0.12,
+    "Monto total",
+    ha="center",
+    va="center",
+    fontsize=10,
+    color="#555555"
+)
+
+#ax.set_title(
+    #"Distribución del monto adjudicado por institución",
+    #fontsize=14,
+    #color="#0B4F6C",
+    #pad=18
+#)
+
+plt.tight_layout()
+plt.show()
+
+
+# se considera el año 2023
+uni_beca_2023 = universidad_beca[universidad_beca["AÑO"]==2023]
+uni_beca_2023 = (uni_beca_2023.groupby("ORG_SHORT", as_index=False).agg({"MONTO":"sum"}))
+
+# Ordenar de mayor a menor
+uni_beca_2023 = uni_beca_2023.sort_values("MONTO", ascending=False)
+
+# Si tienes muchas instituciones, agrupa las menores como "Otros"
+top_n = 5
+df_top = uni_beca_2023.head(top_n).copy()
+
+otros = uni_beca_2023.iloc[top_n:]["MONTO"].sum()
+
+if otros > 0:
+    df_top = pd.concat([
+        df_top,
+        pd.DataFrame({
+            "ORG_SHORT": ["Otros"],
+            "MONTO": [otros]
+        })
+    ])
+
+# Convertir a millones
+df_top["MONTO_M"] = df_top["MONTO"] / 1e6
+
+# Colores profesionales
+colors = [
+    "#D9D9D9", "#5FB7C6", "#A3AD2C", "#7A8C99",
+    "#D9A441", "#9B6A6C", "#6FA8DC"
+]
+
+fig, ax = plt.subplots(figsize=(9, 7))
+
+wedges, texts, autotexts = ax.pie(
+    df_top["MONTO_M"],
+    labels=df_top["ORG_SHORT"],
+    autopct="%1.1f%%",
+    startangle=90,
+    colors=colors[:len(df_top)],
+    pctdistance=0.78,
+    labeldistance=1.08,
+    wedgeprops={
+        "width": 0.42,
+        "edgecolor": "white",
+        "linewidth": 1
+    },
+    textprops={
+        "fontsize": 9,
+        "color": "#1F1F1F"
+    }
+)
+
+# Centro del donut
+total_m = df_top["MONTO_M"].sum()
+
+ax.text(
+    0, 0.05,
+    f"S/ {total_m:,.1f} M",
+    ha="center",
+    va="center",
+    fontsize=16,
+    fontweight="bold",
+    color="#0B4F6C"
+)
+
+ax.text(
+    0, -0.12,
+    "Monto total",
+    ha="center",
+    va="center",
+    fontsize=10,
+    color="#555555"
+)
+
+#ax.set_title(
+    #"Distribución del monto adjudicado por institución",
+    #fontsize=14,
+    #color="#0B4F6C",
+    #pad=18
+#)
+
+plt.tight_layout()
+plt.show()
+
+
+
+# =========================================================
+# 1. FUNCIÓN PARA PREPARAR DATA POR AÑO
+# =========================================================
+def preparar_donut_data(data, year, top_n=5):
+    df_year = data[data["AÑO"] == year].copy()
+
+    df_year = (
+        df_year.groupby("ORG_SHORT", as_index=False)
+        .agg(MONTO=("MONTO", "sum"))
+        .sort_values("MONTO", ascending=False)
+    )
+
+    df_top = df_year.head(top_n).copy()
+    otros = df_year.iloc[top_n:]["MONTO"].sum()
+
+    if otros > 0:
+        df_top = pd.concat([
+            df_top,
+            pd.DataFrame({"ORG_SHORT": ["Otros"], "MONTO": [otros]})
+        ], ignore_index=True)
+
+    df_top["MONTO_M"] = df_top["MONTO"] / 1e6
+    return df_top
+
+
+# =========================================================
+# 2. PREPARAR DATA
+# =========================================================
+df_2015 = preparar_donut_data(universidad_beca, 2015, top_n=5)
+df_2023 = preparar_donut_data(universidad_beca, 2023, top_n=5)
+
+
+# =========================================================
+# 3. MAPA GLOBAL DE COLORES POR INSTITUCIÓN
+# =========================================================
+palette = [
+    "#0B4F6C",  # azul petróleo
+    "#5FB7C6",  # celeste
+    "#A3AD2C",  # verde
+    "#7A8C99",  # gris azulado
+    "#D9A441",  # dorado
+    "#E07A5F",  # coral
+    "#6FA8DC",  # azul suave
+    "#C6D166"   # verde claro
+]
+
+orgs_global = pd.concat([
+    df_2015["ORG_SHORT"],
+    df_2023["ORG_SHORT"]
+]).drop_duplicates().tolist()
+
+color_map = {
+    org: palette[i % len(palette)]
+    for i, org in enumerate(orgs_global)
+}
+
+# Colores manuales para evitar confusión
+color_map["UNI"] = "#0B4F6C"
+color_map["UNIVERSIDAD NACIONAL DEL SANTA"] = "#E07A5F"
+color_map["Otros"] = "#D9D9D9"
+
+
+# =========================================================
+# 4. FUNCIÓN PARA GRAFICAR DONUT
+# =========================================================
+def graficar_donut(df_top, year, ax):
+    colors = [color_map.get(org, "#D9D9D9") for org in df_top["ORG_SHORT"]]
+
+    wedges, texts, autotexts = ax.pie(
+        df_top["MONTO_M"],
+        labels=df_top["ORG_SHORT"],
+        autopct=lambda p: f"{p:.1f}%" if p >= 3 else "",
+        startangle=90,
+        colors=colors,
+        pctdistance=0.76,
+        labeldistance=1.10,
+        wedgeprops={
+            "width": 0.42,
+            "edgecolor": "white",
+            "linewidth": 1.2
+        },
+        textprops={
+            "fontsize": 9,
+            "color": "#1F1F1F"
+        }
+    )
+
+    # Mejorar visibilidad de porcentajes según color del segmento
+    for wedge, autotext in zip(wedges, autotexts):
+        r, g, b, _ = wedge.get_facecolor()
+        luminance = 0.299*r + 0.587*g + 0.114*b
+
+        autotext.set_color("#1F1F1F" if luminance > 0.62 else "white")
+        autotext.set_fontsize(10)
+        autotext.set_fontweight("bold")
+
+    total_m = df_top["MONTO_M"].sum()
+
+    ax.text(
+        0, 0.06,
+        f"S/ {total_m:,.1f} M",
+        ha="center",
+        va="center",
+        fontsize=16,
+        fontweight="bold",
+        color="#0B4F6C"
+    )
+
+    ax.text(
+        0, -0.12,
+        "Monto total",
+        ha="center",
+        va="center",
+        fontsize=9,
+        color="#555555"
+    )
+
+    ax.set_title(
+        f"{year}",
+        fontsize=17,
+        fontweight="bold",
+        color="#0B4F6C",
+        pad=14
+    )
+
+
+# =========================================================
+# 5. GRAFICAR DONUTS COMPARATIVOS
+# =========================================================
+fig, axes = plt.subplots(1, 2, figsize=(16, 7))
+
+graficar_donut(df_2015, 2015, axes[0])
+graficar_donut(df_2023, 2023, axes[1])
+
+plt.tight_layout()
+plt.show()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ###############################################################################
 # Se elabora un NLP para considerar cuales son los tópicos más analizados
