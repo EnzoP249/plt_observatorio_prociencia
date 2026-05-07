@@ -126,7 +126,7 @@ df_plot = df_plot.sort_values("AÑO")
 # Monto en millones
 df_plot["MONTO_M"] = df_plot["MONTO"] / 1e6
 
-color_monto = "#0B4F6C"
+color_monto = "#00A7B5"
 color_linea = "#A3AD2C"
 
 fig, ax1 = plt.subplots(figsize=(14, 7))
@@ -236,7 +236,7 @@ observa_año = observa_año.sort_values("AÑO")
 
 # Colores institucionales
 color_principal = "#00A7B5"   # turquesa
-color_secundario = "#1F6F8B"  # azul petróleo
+color_secundario = "#5FB7C6"  # azul petróleo
 
 # Tamaño más amplio (clave para separar barras)
 plt.figure(figsize=(12,6))
@@ -248,7 +248,7 @@ bars = plt.bar(observa_año["AÑO"], observa_año["ID_CONTRATO"],
 
 # Etiquetas
 plt.xlabel("Año", fontsize=11, color="black")
-plt.ylabel("Número de contratos", fontsize=11, color="black")
+plt.ylabel("Número de subvenciones", fontsize=11, color="black")
 
 # Título más sobrio (tipo consultoría)
 #plt.title("Evolución de contratos por año", 
@@ -326,7 +326,7 @@ bars2 = ax.bar(x + width/2, obv_año_estado["Concluido"], width, label="Concluid
 
 # Ejes
 ax.set_xlabel("Año", fontsize=11)
-ax.set_ylabel("Número de contratos", fontsize=11)
+ax.set_ylabel("Número de subvenciones", fontsize=11)
 #ax.set_title("Contratos por estado y año", fontsize=14, pad=15)
 
 # Eje X con todos los años
@@ -534,7 +534,10 @@ observa_inter_año.reset_index(inplace=True)
 
 # Copia del dataframe
 df_plot = observa_inter_año.copy()
+df_plot.columns
 
+# Me quedo solo con un conjunto de columnas establecidas
+df_plot = df_plot[["AÑO", "INVESTIGACIÓN CIENTÍFICA", "INNOVACIÓN Y TRANSFERENCIA TECNOLÓGICA", "EQUIPAMIENTO"]]
 df_plot = df_plot[df_plot["AÑO"]!=2026]
 
 cols = [c for c in df_plot.columns if c != "AÑO"]
@@ -550,18 +553,14 @@ df_plot = df_plot.sort_values("AÑO")
 # ----------------------------
 colors_list = [
     "#0B4F6C",  # azul petróleo
-    "#5FB7C6",  # celeste
     "#A3AD2C",  # verde
-    "#C4455C",  # rojo suave
     "#7A3E9D",  # morado
-    "#00A7B5",  # turquesa
-    "#F4A261"   # naranja (contraste)
 ]
 
 # ----------------------------
 # Marcadores distintos
 # ----------------------------
-markers = ["o", "s", "^", "D", "P", "X", "*"]
+markers = ["o", "^", "*"]
 
 # ----------------------------
 # Gráfico
@@ -579,6 +578,31 @@ for i, c in enumerate(cols):
         markersize=6,
         label=c
     )
+
+
+# ----------------------------
+# Etiquetas sobre cada línea
+# ----------------------------
+offsets = [8, 12, -10]
+
+for i, c in enumerate(cols):
+
+    for x, y in zip(df_plot["AÑO"], df_plot[c]):
+
+        # Evitar mostrar etiquetas en cero
+        if y == 0:
+            continue
+
+        ax.text(
+            x,
+            y + offsets[i],                 # separación vertical
+            f"{int(y)}",
+            ha="center",
+            va="bottom" if offsets[i] > 0 else "top",
+            fontsize=9,
+            color=colors_list[i],
+            fontweight="bold"
+        )
 
 # ----------------------------
 # Estética profesional
@@ -680,472 +704,174 @@ observa["PRODUCCION"] = observa["PUB"] + observa["TESIS"] + observa["PAT"]
 observa_conclu = observa[observa["ESTADO"]=="Concluido"]
 
 observa_pre = (observa_conclu.groupby("AÑO", as_index=False).agg({"MONTO":"sum", "PRODUCCION":"sum"}))
-
-df_plot = observa_pre.copy()
-
-color_monto = "#5FB7C6"
-color_prod = "#0B4F6C"
-
-fig, ax1 = plt.subplots(figsize=(12, 6))
-
-# Barras
-ax1.bar(
-    df_plot["AÑO"],
-    df_plot["MONTO"],
-    color=color_monto,
-    alpha=0.8,
-    width=0.6
-)
-
-ax1.set_xlabel("Año")
-ax1.set_ylabel("Monto (S/)", color=color_monto)
-ax1.tick_params(axis='y', labelcolor=color_monto)
-
-# FORZAR TODOS LOS AÑOS
-años = df_plot["AÑO"].astype(int).tolist()
-ax1.set_xticks(años)
-ax1.set_xticklabels(años)
-
-# Línea
-ax2 = ax1.twinx()
-
-ax2.plot(
-    df_plot["AÑO"],
-    df_plot["PRODUCCION"],
-    color=color_prod,
-    marker="o",
-    linewidth=2.5
-)
-
-ax2.set_ylabel("Producción", color=color_prod)
-ax2.tick_params(axis='y', labelcolor=color_prod)
-
-# Estética
-ax1.set_title("Relación entre financiamiento y producción científica",
-              fontsize=14, pad=15)
-
-ax1.spines["top"].set_visible(False)
-ax2.spines["top"].set_visible(False)
-
-ax1.grid(axis="y", linestyle="--", alpha=0.25)
-
-plt.tight_layout()
-plt.show()
-
-# Se plantea el mismo gráfico pero con etiquetas en los valores
 df_plot = observa_pre.copy()
 
 df_plot["AÑO"] = pd.to_numeric(df_plot["AÑO"], errors="coerce")
 df_plot["MONTO"] = pd.to_numeric(df_plot["MONTO"], errors="coerce")
-df_plot["PRODUCCION"] = pd.to_numeric(df_plot["PRODUCCION"], errors="coerce")
 
-df_plot = df_plot.dropna(subset=["AÑO", "MONTO", "PRODUCCION"]).copy()
-df_plot["AÑO"] = df_plot["AÑO"].astype(int)
+# Convertir a millones
+df_plot["MONTO_M"] = df_plot["MONTO"] / 1e6
 
 df_plot = df_plot.sort_values("AÑO")
 
-# ----------------------------
-# Colores institucionales
-# ----------------------------
-color_monto = "#5FB7C6"   # celeste institucional
-color_prod = "#0B4F6C"    # azul petróleo
+# =========================================================
+# FIGURA
+# =========================================================
+fig, ax = plt.subplots(figsize=(14, 7))
 
-# ----------------------------
-# Figura
-# ----------------------------
-fig, ax1 = plt.subplots(figsize=(14, 7))
+color_bar = "#0B4F6C"
 
-# ----------------------------
-# Barras: MONTO
-# ----------------------------
-bars = ax1.bar(
+bars = ax.bar(
     df_plot["AÑO"],
-    df_plot["MONTO"],
-    color=color_monto,
+    df_plot["MONTO_M"],
+    color=color_bar,
+    width=0.65,
     alpha=0.85,
-    width=0.6
+    edgecolor="white",
+    linewidth=1
 )
 
-ax1.set_xlabel("Año", fontsize=11)
-ax1.set_ylabel("Monto (S/)", fontsize=11, color=color_monto)
-ax1.tick_params(axis="y", labelcolor=color_monto)
+# =========================================================
+# ETIQUETAS INTELIGENTES
+# =========================================================
+max_monto = df_plot["MONTO_M"].max()
 
-# Mostrar todos los años en eje X
-años = df_plot["AÑO"].tolist()
-ax1.set_xticks(años)
-ax1.set_xticklabels(años)
+for bar, valor_real in zip(bars, df_plot["MONTO"]):
 
-# ----------------------------
-# Línea: PRODUCCION
-# ----------------------------
-ax2 = ax1.twinx()
+    height = bar.get_height()
 
-ax2.plot(
+    # ----------------------------
+    # Si es menor a 1 millón
+    # mostrar en miles
+    # ----------------------------
+    if valor_real < 1_000_000:
+
+        label = f"{valor_real/1e3:.0f} mil"
+
+    else:
+
+        label = f"{height:.1f}M"
+
+    ax.text(
+        bar.get_x() + bar.get_width()/2,
+        height + max_monto * 0.02,
+        label,
+        ha="center",
+        va="bottom",
+        fontsize=9,
+        color=color_bar,
+        fontweight="bold"
+    )
+
+# =========================================================
+# MOSTRAR TODOS LOS AÑOS
+# =========================================================
+años = df_plot["AÑO"].astype(int).tolist()
+
+ax.set_xticks(años)
+ax.set_xticklabels(años)
+
+# =========================================================
+# ESTÉTICA
+# =========================================================
+ax.set_xlabel("Año", fontsize=11)
+
+ax.set_ylabel(
+    "Monto (S/)",
+    fontsize=11,
+    color=color_bar
+)
+
+ax.tick_params(axis="y", labelcolor=color_bar)
+
+ax.grid(axis="y", linestyle="--", alpha=0.25)
+
+ax.spines["top"].set_visible(False)
+ax.spines["right"].set_visible(False)
+
+ax.set_axisbelow(True)
+
+ax.set_title(
+    "Evolución anual del financiamiento",
+     fontsize=15,
+     color="black",
+     pad=15
+)
+
+plt.tight_layout()
+plt.show()
+
+# =========================================================
+# FIGURA
+# =========================================================
+fig, ax = plt.subplots(figsize=(14, 7))
+
+color_line = "#0B4F6C"
+
+ax.plot(
     df_plot["AÑO"],
     df_plot["PRODUCCION"],
-    color=color_prod,
+    color=color_line,
     marker="o",
     linewidth=2.5,
     markersize=6
 )
 
-ax2.set_ylabel("Producción", fontsize=11, color=color_prod)
-ax2.tick_params(axis="y", labelcolor=color_prod)
 
-# ----------------------------
-# Etiquetas en barras (MONTO)
-# ----------------------------
-max_monto = df_plot["MONTO"].max()
-
-for bar in bars:
-    height = bar.get_height()
-    x = bar.get_x() + bar.get_width() / 2
-
-    # Mostrar en millones para evitar saturación
-    label = f"{height / 1e6:.1f}M"
-
-    ax1.text(
-        x,
-        height + max_monto * 0.012,
-        label,
-        ha="center",
-        va="bottom",
-        fontsize=8,
-        color=color_monto
-    )
-
-# ----------------------------
-# Etiquetas en línea (PRODUCCION)
-# con lógica para evitar superposición
-# ----------------------------
+# =========================================================
+# ETIQUETAS (todas arriba)
+# =========================================================
 max_prod = df_plot["PRODUCCION"].max()
-prev_y = None
 
-for i, (x, y) in enumerate(zip(df_plot["AÑO"], df_plot["PRODUCCION"])):
-    if prev_y is not None and abs(y - prev_y) < max_prod * 0.08:
-        # alternar arriba/abajo si están muy cerca
-        if i % 2 == 0:
-            offset = max_prod * 0.06
-            va = "bottom"
-        else:
-            offset = -max_prod * 0.06
-            va = "top"
-    else:
-        offset = max_prod * 0.035
-        va = "bottom"
+for x, y in zip(df_plot["AÑO"], df_plot["PRODUCCION"]):
 
-    ax2.text(
+    ax.text(
         x,
-        y + offset,
+        y + max_prod * 0.03, # todas arriba
         f"{int(y)}",
         ha="center",
-        va=va,
+        va="bottom",
         fontsize=9,
-        color=color_prod,
+        color=color_line,
         fontweight="bold"
     )
 
-    prev_y = y
+# =========================================================
+# MOSTRAR TODOS LOS AÑOS
+# =========================================================
+años = df_plot["AÑO"].astype(int).tolist()
 
-# ----------------------------
-# Estética profesional
-# ----------------------------
-ax1.set_title(
-    "Relación entre financiamiento y producción científica",
+ax.set_xticks(años)
+ax.set_xticklabels(años)
+
+# =========================================================
+# ESTÉTICA
+# =========================================================
+ax.set_xlabel("Año", fontsize=11)
+
+ax.set_ylabel(
+    "Producción científica",
+    fontsize=11,
+    color=color_line
+)
+
+ax.grid(axis="y", linestyle="--", alpha=0.25)
+
+ax.spines["top"].set_visible(False)
+ax.spines["right"].set_visible(False)
+
+ax.set_axisbelow(True)
+
+ax.set_title(
+    "Evolución anual de la producción científica",
     fontsize=15,
-    color=color_prod,
-    pad=15
+     color="black",
+     pad=15
 )
-
-ax1.spines["top"].set_visible(False)
-ax2.spines["top"].set_visible(False)
-ax1.spines["right"].set_visible(False)
-
-ax1.grid(axis="y", linestyle="--", alpha=0.25)
-ax1.set_axisbelow(True)
 
 plt.tight_layout()
 plt.show()
 
-###############################################################################
-# Este es el gráfico que integra mi ppt
-###############################################################################
-
-# ----------------------------
-# Preparación de datos
-# ----------------------------
-df_plot = observa_pre.copy()
-
-df_plot["AÑO"] = pd.to_numeric(df_plot["AÑO"], errors="coerce")
-df_plot["MONTO"] = pd.to_numeric(df_plot["MONTO"], errors="coerce")
-df_plot["PRODUCCION"] = pd.to_numeric(df_plot["PRODUCCION"], errors="coerce")
-
-df_plot = df_plot.dropna(subset=["AÑO", "MONTO", "PRODUCCION"]).copy()
-df_plot["AÑO"] = df_plot["AÑO"].astype(int)
-df_plot = df_plot.sort_values("AÑO")
-
-# Convertir MONTO a millones
-df_plot["MONTO_M"] = df_plot["MONTO"] / 1e6
-
-# ----------------------------
-# Colores
-# ----------------------------
-color_monto = "#5FB7C6"   # celeste institucional
-color_prod = "#0B4F6C"    # azul petróleo
-gris_suave = "#D9D9D9"
-
-# ----------------------------
-# Figura
-# ----------------------------
-fig, ax1 = plt.subplots(figsize=(14, 7))
-
-# Barras: MONTO
-bars = ax1.bar(
-    df_plot["AÑO"],
-    df_plot["MONTO_M"],
-    color=color_monto,
-    alpha=0.85,
-    width=0.62,
-    edgecolor="white",
-    linewidth=1
-)
-
-ax1.set_xlabel("Año", fontsize=12)
-ax1.set_ylabel("Monto (millones de S/)", fontsize=12, color=color_monto)
-ax1.tick_params(axis="y", labelcolor=color_monto)
-
-# Mostrar todos los años
-años = df_plot["AÑO"].tolist()
-ax1.set_xticks(años)
-ax1.set_xticklabels(años)
-
-# Línea: PRODUCCION
-ax2 = ax1.twinx()
-ax2.plot(
-    df_plot["AÑO"],
-    df_plot["PRODUCCION"],
-    color=color_prod,
-    marker="o",
-    linewidth=2.8,
-    markersize=7,
-    zorder=3
-)
-
-ax2.set_ylabel("Producción", fontsize=12, color=color_prod)
-ax2.tick_params(axis="y", labelcolor=color_prod)
-
-# ----------------------------
-# Etiquetas solo en años clave
-# ----------------------------
-# Año de monto máximo
-idx_monto_max = df_plot["MONTO_M"].idxmax()
-x_monto_max = df_plot.loc[idx_monto_max, "AÑO"]
-y_monto_max = df_plot.loc[idx_monto_max, "MONTO_M"]
-
-ax1.text(
-    x_monto_max,
-    y_monto_max + df_plot["MONTO_M"].max() * 0.01,
-    f"{y_monto_max:.1f}M",
-    ha="center",
-    va="bottom",
-    fontsize=10,
-    color=color_monto,
-    fontweight="bold"
-)
-
-# Año de producción máxima
-idx_prod_max = df_plot["PRODUCCION"].idxmax()
-x_prod_max = df_plot.loc[idx_prod_max, "AÑO"]
-y_prod_max = df_plot.loc[idx_prod_max, "PRODUCCION"]
-
-ax2.text(
-    x_prod_max,
-    y_prod_max + df_plot["PRODUCCION"].max() * 0.04,
-    f"{int(y_prod_max)}",
-    ha="center",
-    va="bottom",
-    fontsize=10,
-    color=color_prod,
-    fontweight="bold"
-)
-
-# Opcional: etiquetar primer y último año solo para contexto
-for _, row in df_plot[df_plot["AÑO"].isin([df_plot["AÑO"].min(), df_plot["AÑO"].max()])].iterrows():
-    ax2.text(
-        row["AÑO"],
-        row["PRODUCCION"] + df_plot["PRODUCCION"].max() * 0.03,
-        f"{int(row['PRODUCCION'])}",
-        ha="center",
-        va="bottom",
-        fontsize=9,
-        color=color_prod
-    )
-
-# ----------------------------
-# Título y estética
-# ----------------------------
-#ax1.set_title(
-    #"Relación entre financiamiento y producción científica",
-    #fontsize=17,
-    #color=color_prod,
-    #pad=18
-#)
-
-# Grilla suave
-ax1.grid(axis="y", linestyle="--", alpha=0.22)
-ax1.set_axisbelow(True)
-
-# Limpiar bordes
-ax1.spines["top"].set_visible(False)
-ax2.spines["top"].set_visible(False)
-ax1.spines["right"].set_visible(False)
-
-# Fondo blanco
-ax1.set_facecolor("white")
-fig.patch.set_facecolor("white")
-
-plt.tight_layout()
-plt.show()
-
-###############################################################################
-# ----------------------------
-# Preparación de datos
-# ----------------------------
-df_plot = observa_pre.copy()
-
-df_plot["AÑO"] = pd.to_numeric(df_plot["AÑO"], errors="coerce")
-df_plot["MONTO"] = pd.to_numeric(df_plot["MONTO"], errors="coerce")
-df_plot["PRODUCCION"] = pd.to_numeric(df_plot["PRODUCCION"], errors="coerce")
-
-df_plot = df_plot.dropna(subset=["AÑO", "MONTO", "PRODUCCION"]).copy()
-df_plot["AÑO"] = df_plot["AÑO"].astype(int)
-df_plot = df_plot.sort_values("AÑO")
-
-df_plot["MONTO_M"] = df_plot["MONTO"] / 1e6
-
-# ----------------------------
-# Colores institucionales
-# ----------------------------
-color_barra = "#5FB7C6"      # celeste institucional
-color_linea = "#0B4F6C"      # azul petróleo
-color_barras_txt = "#6FAFBD" # tono suave para etiquetas barras
-
-# Fondo de callout
-bbox_props = dict(
-    boxstyle="round,pad=0.22",
-    facecolor="#F7F9E8",
-    edgecolor="#B7BF10",
-    linewidth=1.2
-)
-
-# ----------------------------
-# Figura
-# ----------------------------
-fig, ax1 = plt.subplots(figsize=(14, 7))
-
-# Barras
-bars = ax1.bar(
-    df_plot["AÑO"],
-    df_plot["MONTO_M"],
-    color=color_barra,
-    alpha=0.88,
-    width=0.60,
-    edgecolor="white",
-    linewidth=1
-)
-
-# Eje izquierdo
-ax1.set_xlabel("Año", fontsize=12)
-ax1.set_ylabel("Monto (millones de S/)", fontsize=12, color=color_barra)
-ax1.tick_params(axis="y", labelcolor=color_barra)
-
-# Mostrar todos los años
-años = df_plot["AÑO"].tolist()
-ax1.set_xticks(años)
-ax1.set_xticklabels(años)
-
-# Línea
-ax2 = ax1.twinx()
-ax2.plot(
-    df_plot["AÑO"],
-    df_plot["PRODUCCION"],
-    color=color_linea,
-    marker="o",
-    linewidth=2.8,
-    markersize=7,
-    zorder=4
-)
-
-ax2.set_ylabel("Producción", fontsize=12, color=color_linea)
-ax2.tick_params(axis="y", labelcolor=color_linea)
-
-# ----------------------------
-# Etiquetas en barras (discretas)
-# ----------------------------
-max_monto = df_plot["MONTO_M"].max()
-
-for bar in bars:
-    h = bar.get_height()
-    x = bar.get_x() + bar.get_width() / 2
-
-    ax1.text(
-        x,
-        h + max_monto * 0.015,
-        f"{h:.1f}M",
-        ha="center",
-        va="bottom",
-        fontsize=8.5,
-        color=color_barras_txt,
-        fontweight="bold"
-    )
-
-# ----------------------------
-# Etiquetas de la línea en cajas
-# ----------------------------
-max_prod = df_plot["PRODUCCION"].max()
-
-for i, (x, y, monto_m) in enumerate(zip(df_plot["AÑO"], df_plot["PRODUCCION"], df_plot["MONTO_M"])):
-    # alternar la posición de las cajas para evitar choques
-    if i % 2 == 0:
-        y_offset = max_prod * 0.08
-    else:
-        y_offset = -max_prod * 0.10
-
-    ax2.annotate(
-        f"{int(y)}",
-        xy=(x, y),
-        xytext=(x, y + y_offset),
-        textcoords="data",
-        ha="center",
-        va="center",
-        fontsize=9,
-        color=color_linea,
-        fontweight="bold",
-        bbox=bbox_props,
-        arrowprops=dict(
-            arrowstyle="-",
-            color="#B7BF10",
-            lw=0.8,
-            shrinkA=5,
-            shrinkB=5
-        )
-    )
-
-# ----------------------------
-# Estética
-# ----------------------------
-ax1.grid(axis="y", linestyle="--", alpha=0.22)
-ax1.set_axisbelow(True)
-
-ax1.spines["top"].set_visible(False)
-ax2.spines["top"].set_visible(False)
-ax1.spines["right"].set_visible(False)
-
-ax1.set_facecolor("white")
-fig.patch.set_facecolor("white")
-
-plt.tight_layout()
-plt.show()
 
 ###############################################################################
 # Se elabora una gráfica que muestra la tendencias de los componentes que
@@ -1275,7 +1001,7 @@ ax.set_xticks(años)
 #)
 
 ax.set_xlabel("Año")
-ax.set_ylabel("Número de productos")
+ax.set_ylabel("Número de productos científicos")
 
 # ----------------------------
 # Estética
@@ -1293,108 +1019,31 @@ plt.show()
 
 
 ###############################################################################
-#
+# Se analiza la dinámica de las subvenciones otorgadas y las publicaciones
+# científicas elaboradas
 ###############################################################################
-
-# Considerando observa_concluido, se analiza la relación entre subvenciones y
-# resultados de investigación científica
-
-inve = observa_conclu[observa_conclu["INTERVENCIÓN"]=="INVESTIGACIÓN CIENTÍFICA"]
-inve_ana = (inve.groupby("AÑO", as_index=False).agg({"INTERVENCIÓN":"count", "PUB":"sum"}))
-
-df_plot = inve_ana.copy()
-df_plot = df_plot.sort_values("AÑO")
-
+# =========================================================
+# FIGURA
+# =========================================================
 fig, ax = plt.subplots(figsize=(12, 6))
 
-# Colores institucionales
+# =========================================================
+# COLORES
+# =========================================================
 color_1 = "#0B4F6C"   # azul petróleo
 color_2 = "#5FB7C6"   # celeste
 
-# Líneas
+# =========================================================
+# LÍNEAS
+# =========================================================
 ax.plot(
     df_plot["AÑO"],
     df_plot["INTERVENCIÓN"],
     marker="o",
     linewidth=2.8,
-    label="Intervención",
-    color=color_1
-)
-
-ax.plot(
-    df_plot["AÑO"],
-    df_plot["PUB"],
-    marker="s",
-    linewidth=2.8,
-    label="Publicaciones",
-    color=color_2
-)
-
-# Eje X
-años = df_plot["AÑO"].tolist()
-ax.set_xticks(años)
-
-# ----------------------------
-# Etiquetas SOLO al final (profesional)
-# ----------------------------
-for col, color, offset in [
-    ("INTERVENCIÓN", color_1, 15),
-    ("PUB", color_2, -10)
-]:
-    x_last = df_plot["AÑO"].iloc[-1]
-    y_last = df_plot[col].iloc[-1]
-
-    ax.text(
-        x_last + 0.2,
-        y_last + offset,
-        f"{col} ({int(y_last)})",
-        color=color,
-        fontsize=10,
-        fontweight="bold",
-        va="center"
-    )
-
-# ----------------------------
-# Estética
-# ----------------------------
-ax.set_title(
-    "Evolución comparativa de Intervención y Publicaciones",
-    fontsize=15,
+    markersize=6,
     color=color_1,
-    pad=15
-)
-
-ax.set_xlabel("Año")
-ax.set_ylabel("Número")
-
-ax.grid(axis="y", linestyle="--", alpha=0.25)
-
-ax.spines["top"].set_visible(False)
-ax.spines["right"].set_visible(False)
-
-# quitar leyenda (ya etiquetas directamente)
-# ax.legend()
-
-# espacio para etiquetas finales
-ax.set_xlim(df_plot["AÑO"].min(), df_plot["AÑO"].max() + 1)
-
-plt.tight_layout()
-plt.show()
-
-
-fig, ax = plt.subplots(figsize=(12, 6))
-
-# Colores
-color_1 = "#0B4F6C"   # azul petróleo
-color_2 = "#5FB7C6"   # celeste
-
-# Líneas
-ax.plot(
-    df_plot["AÑO"],
-    df_plot["INTERVENCIÓN"],
-    marker="o",
-    linewidth=2.8,
-    color=color_1
+    label="Subvenciones en investigación científica"
 )
 
 ax.plot(
@@ -1402,91 +1051,127 @@ ax.plot(
     df_plot["PUB"],
     marker="s",
     linewidth=2.8,
-    color=color_2
+    markersize=6,
+    color=color_2,
+    label="Producción científica"
 )
 
-# Eje X
+# =========================================================
+# EJE X
+# =========================================================
 años = df_plot["AÑO"].tolist()
-ax.set_xticks(años)
 
-# ----------------------------
-# ETIQUETAS DINÁMICAS
-# ----------------------------
-max_y = max(
-    df_plot["INTERVENCIÓN"].max(),
-    df_plot["PUB"].max()
+ax.set_xticks(años)
+ax.set_xticklabels(años)
+
+# =========================================================
+# ETIQUETAS INTELIGENTES
+# =========================================================
+for x, y1, y2 in zip(
+    df_plot["AÑO"],
+    df_plot["INTERVENCIÓN"],
+    df_plot["PUB"]
+):
+
+    # diferencia entre ambas líneas
+    diff = abs(y1 - y2)
+
+    # si están muy cerca -> separar más
+    if diff < 25:
+
+        offset_1 = 18
+        offset_2 = -22
+
+    else:
+
+        offset_1 = 12
+        offset_2 = 12
+
+    # ----------------------------
+    # INTERVENCIÓN
+    # ----------------------------
+    if y1 != 0:
+
+        ax.text(
+            x,
+            y1 + offset_1,
+            f"{int(y1)}",
+            ha="center",
+            va="bottom",
+            fontsize=9,
+            color=color_1,
+            fontweight="bold",
+            bbox=dict(
+                boxstyle="round,pad=0.15",
+                facecolor="white",
+                edgecolor="none",
+                alpha=0.75
+            )
+        )
+
+    # ----------------------------
+    # PUB
+    # ----------------------------
+    if y2 != 0:
+
+        ax.text(
+            x,
+            y2 + offset_2,
+            f"{int(y2)}",
+            ha="center",
+            va="bottom" if offset_2 > 0 else "top",
+            fontsize=9,
+            color=color_2,
+            bbox=dict(
+                boxstyle="round,pad=0.15",
+                facecolor="white",
+                edgecolor="none",
+                alpha=0.75
+            )
+        )
+
+# =========================================================
+# LEYENDA PROFESIONAL
+# =========================================================
+legend = ax.legend(
+    loc="upper right",
+    frameon=True,
+    fancybox=True,
+    fontsize=10
 )
 
-# INTERVENCIÓN
-for i, (x, y) in enumerate(zip(df_plot["AÑO"], df_plot["INTERVENCIÓN"])):
+legend.get_frame().set_facecolor("white")
+legend.get_frame().set_edgecolor("#D9D9D9")
+legend.get_frame().set_alpha(0.95)
 
-    offset = max_y * (0.04 if i % 2 == 0 else -0.05)
+# =========================================================
+# ESTÉTICA
+# =========================================================
+# ax.set_title(
+#     "Evolución comparativa de intervenciones y producción científica",
+#     fontsize=15,
+#     color=color_1,
+#     pad=15
+# )
 
-    ax.text(
-        x,
-        y + offset,
-        f"{int(y)}",
-        ha="center",
-        va="bottom" if offset > 0 else "top",
-        fontsize=9,
-        color=color_1,
-        fontweight="bold"
-    )
+ax.set_xlabel("Año", fontsize=11)
 
-# PUB
-for i, (x, y) in enumerate(zip(df_plot["AÑO"], df_plot["PUB"])):
-
-    offset = max_y * (-0.06 if i % 2 == 0 else 0.05)
-
-    ax.text(
-        x,
-        y + offset,
-        f"{int(y)}",
-        ha="center",
-        va="bottom" if offset > 0 else "top",
-        fontsize=9,
-        color=color_2
-    )
-
-# ----------------------------
-# Etiquetas finales (mantener)
-# ----------------------------
-for col, color, offset in [
-    ("INTERVENCIÓN", color_1, 15),
-    ("PUB", color_2, -10)
-]:
-    x_last = df_plot["AÑO"].iloc[-1]
-    y_last = df_plot[col].iloc[-1]
-
-    ax.text(
-        x_last + 0.2,
-        y_last + offset,
-        f"{col} ({int(y_last)})",
-        color=color,
-        fontsize=10,
-        fontweight="bold",
-        va="center"
-    )
-
-# ----------------------------
-# Estética
-# ----------------------------
-#ax.set_title(
-    #"Evolución comparativa de Intervención y Publicaciones",
-    #fontsize=15,
-    #color=color_1,
-    #pad=15
-#)
-
-ax.set_xlabel("Año")
-ax.set_ylabel("Número")
+ax.set_ylabel(
+    "Número de subvenciones y publicaciones",
+    fontsize=11
+)
 
 ax.grid(axis="y", linestyle="--", alpha=0.25)
 
 ax.spines["top"].set_visible(False)
 ax.spines["right"].set_visible(False)
 
-ax.set_xlim(df_plot["AÑO"].min(), df_plot["AÑO"].max() + 1)
+ax.set_axisbelow(True)
+
+ax.set_xlim(
+    df_plot["AÑO"].min(),
+    df_plot["AÑO"].max() + 0.8
+)
 
 plt.tight_layout()
 plt.show()
@@ -1529,20 +1214,6 @@ plt.grid(axis="x", linestyle="--", alpha=0.3)
 
 plt.tight_layout()
 plt.show()
-
-###############################################################################
-# Se elabora una gráfica para visualizar el top 10 de personas naturales
-# Se consideran tanto las subvenciones en condición de activo y concluido
-###############################################################################
-
-
-
-
-
-
-
-
-
 
 
 ##############################################################################################################################
@@ -1660,6 +1331,176 @@ ax.grid(alpha=0.25)
 
 ax.spines["top"].set_visible(False)
 ax.spines["right"].set_visible(False)
+
+plt.tight_layout()
+plt.show()
+
+
+# =========================================================
+# 2. AGRUPACIÓN
+# =========================================================
+observa_pre_uni_a = (
+    observa_pre_uni
+    .groupby("ORGANIZACIÓN", as_index=False)
+    .agg({
+        "MONTO": "sum",
+        "PRODUCCION": "sum"
+    })
+)
+
+# Menor producción
+observa_pre_uni_a = (
+    observa_pre_uni_a[
+        observa_pre_uni_a["PRODUCCION"] <= 25
+    ]
+)
+
+# =========================================================
+# 3. DATAFRAME BASE
+# =========================================================
+df_plot = observa_pre_uni_a.copy()
+
+df_plot["MONTO"] = pd.to_numeric(
+    df_plot["MONTO"],
+    errors="coerce"
+)
+
+df_plot["PRODUCCION"] = pd.to_numeric(
+    df_plot["PRODUCCION"],
+    errors="coerce"
+)
+
+df_plot = df_plot.dropna(
+    subset=["MONTO", "PRODUCCION"]
+).copy()
+
+# Escala en millones
+df_plot["MONTO_M"] = df_plot["MONTO"] / 1e6
+
+# =========================================================
+# 4. DICCIONARIO DE ABREVIACIONES
+# =========================================================
+map_dict = {
+    "UNIVERSIDAD PRIVADA ANTENOR ORREGO": "UPAO",
+    "UNIVERSIDAD ANDINA DEL CUSCO": "UAC",
+    "UNIVERSIDAD NACIONAL DEL CENTRO DEL PERU": "UNCP",
+    "UNIVERSIDAD NACIONAL DE SAN ANTONIO ABAD DEL CUSCO": "UNSAAC",
+    "UNIVERSIDAD SAN IGNACIO DE LOYOLA S.R.L.": "USIL",
+    "UNIVERSIDAD NACIONAL DEL SANTA": "UNS",
+    "ASOCIACION CIVIL UNIVERSIDAD DE CIENCIAS Y HUMANIDADES UCH": "UCH",
+    "UNIVERSIDAD DE LIMA": "ULIMA",
+    "UNIVERSIDAD DE SAN MARTIN DE PORRES": "USMP",
+    "UNIVERSIDAD NACIONAL AGRARIA LA MOLINA": "UNALM",
+    "UNIVERSIDAD NACIONAL DE SAN CRISTOBAL DE HUAMANGA": "UNSCH",
+    "UNIVERSIDAD CATOLICA SEDES SAPIENTIAE": "UCSS",
+    "UNIVERSIDAD CIENTIFICA DEL PERU": "UCP",
+    "UNIVERSIDAD NACIONAL DE LA AMAZONIA PERUANA": "UNAP",
+    "UNIVERSIDAD PRIVADA DEL NORTE SAC": "UPN",
+    "UNIVERSIDAD CESAR VALLEJO S.A.C.":"UCV"
+}
+
+# =========================================================
+# 5. MAPEO
+# =========================================================
+df_plot["ORG_SHORT"] = (
+    df_plot["ORGANIZACIÓN"]
+    .map(map_dict)
+)
+
+# Mantener solo universidades del diccionario
+df_plot = (
+    df_plot[
+        df_plot["ORG_SHORT"].notna()
+    ]
+    .copy()
+)
+
+# =========================================================
+# 6. VARIABLES
+# =========================================================
+x = df_plot["MONTO_M"]
+y = df_plot["PRODUCCION"]
+
+# =========================================================
+# 7. LÍNEA DE TENDENCIA
+# =========================================================
+coef = np.polyfit(x, y, 1)
+
+trend = np.poly1d(coef)
+
+# =========================================================
+# 8. FIGURA
+# =========================================================
+fig, ax = plt.subplots(figsize=(10, 6))
+
+# =========================================================
+# 9. SCATTER
+# =========================================================
+ax.scatter(
+    x,
+    y,
+    color="#5FB7C6",
+    s=90,
+    edgecolors="white",
+    linewidth=1.5,
+    zorder=3
+)
+
+# =========================================================
+# 10. LÍNEA DE TENDENCIA
+# =========================================================
+#ax.plot(
+    #x,
+    #trend(x),
+    #color="#0B4F6C",
+    #linewidth=2.2,
+    #linestyle="--",
+    #zorder=2
+#)
+
+# =========================================================
+# 11. ETIQUETAS
+# =========================================================
+for _, row in df_plot.iterrows():
+
+    ax.text(
+        row["MONTO_M"] + 0.05,
+        row["PRODUCCION"],
+        row["ORG_SHORT"],
+        fontsize=9,
+        ha="left",
+        va="center",
+        color="#0B4F6C",
+        fontweight="bold"
+    )
+
+# =========================================================
+# 12. ESTÉTICA
+# =========================================================
+# ax.set_title(
+#     "Relación entre financiamiento y producción científica",
+#     fontsize=14,
+#     color="#0B4F6C",
+#     pad=15
+# )
+
+ax.set_xlabel(
+    "Monto (millones de S/)"
+)
+
+ax.set_ylabel(
+    "Producción científica"
+)
+
+ax.grid(
+    alpha=0.25,
+    linestyle="--"
+)
+
+ax.spines["top"].set_visible(False)
+ax.spines["right"].set_visible(False)
+
+ax.set_axisbelow(True)
 
 plt.tight_layout()
 plt.show()
